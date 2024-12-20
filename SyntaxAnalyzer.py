@@ -22,8 +22,16 @@ tokensRegex = [
     (r'\s+', None),  # Skip whitespace
 ]
 
-# Tokenization (Lexical Analyzer)
 def tokenize(input_string):
+    """
+    Tokenizes the input string into a list of tokens.
+
+    Args:
+        input_string (str): The string to tokenize.
+
+    Returns:
+        list: A list of tuples containing token types and values.
+    """
     tokens = []
     position = 0
     while position < len(input_string):
@@ -43,26 +51,40 @@ def tokenize(input_string):
     return tokens
 
 def parse(tokens):
-    # Start by parsing assignments
+    """
+    Parse a list of tokens into an abstract syntax tree (AST).
+
+    Args:
+        tokens (list): A list of token tuples (type, value).
+
+    Returns:
+        dict: The root node of the abstract syntax tree.
+    """
     node = parse_assignment(tokens)
-    
     if tokens and tokens[0][0] != EOF:
         raise SyntaxError(f"Unexpected tokens at the end: {tokens}")
-    
     return node
+
 def parse_assignment(tokens):
-    # Expect a data type (optional)
+    """
+    Parse an assignment statement.
+
+    Args:
+        tokens (list): A list of token tuples (type, value).
+
+    Returns:
+        dict: A dictionary representing the assignment.
+    """
     checkDataType = False
     dataType = None
     if tokens and tokens[0][0] == DATATYPE:  # Check if there's a data type
         token_type, dataType = tokens.pop(0)
-        checkDataType = True  # Set to True to indicate that a data type was found
+        checkDataType = True  # Data type was found
 
-    # Expect an identifier, an assignment operator, and an expression
     token_type, value = tokens.pop(0)
     if token_type != IDENTIFIER:
         raise SyntaxError(f"Expected identifier, got {value}")
-
+    
     left = {'type': 'Identifier', 'name': value}
 
     token_type, value = tokens.pop(0)
@@ -71,62 +93,76 @@ def parse_assignment(tokens):
     
     right = parse_expression(tokens)
 
-    # if there is a data type
     if checkDataType:
         return {'Data Type': dataType, 'type': 'Assignment', 'left': left, 'right': right}
 
     return {'type': 'Assignment', 'left': left, 'right': right}
 
-# Parse tree nodes
 def parse_expression(tokens):
-    # Parse a term (number or identifier)
+    """
+    Parse an expression consisting of terms connected by +, -, or % operators.
+
+    Args:
+        tokens (list): A list of token tuples (type, value).
+
+    Returns:
+        dict: The root node of the expression's abstract syntax tree.
+    """
     left = parse_term(tokens)
-    
-    # While we have an operator, continue parsing
+
     while tokens and tokens[0][0] == OPERATOR and tokens[0][1] in ('+', '-','%'):
-        operator = tokens.pop(0)[1]  # Get the operator
+        operator = tokens.pop(0)[1]
         right = parse_term(tokens)
         left = {'type': 'BinaryOperation', 'operator': operator, 'left': left, 'right': right}
     
     return left
 
 def parse_term(tokens):
-    # Parse a factor (number or identifier)
+    """
+    Parse a term consisting of factors connected by * or / operators.
+
+    Args:
+        tokens (list): A list of token tuples (type, value).
+
+    Returns:
+        dict: The root node of the term's abstract syntax tree.
+    """
     left = parse_factor(tokens)
-    
-    # While we have an operator, continue parsing
+
     while tokens and tokens[0][0] == OPERATOR and tokens[0][1] in ('*', '/'):
-        operator = tokens.pop(0)[1]  # Get the operator
+        operator = tokens.pop(0)[1]
         right = parse_factor(tokens)
         left = {'type': 'BinaryOperation', 'operator': operator, 'left': left, 'right': right}
     
     return left
 
 def parse_factor(tokens):
-    # Get the first token
+    """
+    Parse a factor, which could be a number, identifier, unary operator, or an expression in parentheses.
+
+    Args:
+        tokens (list): A list of token tuples (type, value).
+
+    Returns:
+        dict: The parsed factor as a dictionary representing the AST.
+    """
     token_type, value = tokens.pop(0)
 
-    # Handle unary operators
     if token_type == OPERATOR and value in ('-', '!', '~'):
         operand = parse_factor(tokens)  # Recursively parse the operand
         return {'type': 'UnaryOperation', 'operator': value, 'operand': operand}
-    
-    # Handle parentheses
-    elif token_type == LPAREN:
+
+    if token_type == LPAREN:
         expr = parse_expression(tokens)  # Parse the expression inside the parentheses
         token_type, value = tokens.pop(0)
         if token_type != RPAREN:
             raise SyntaxError(f"Expected ')', got {value}")
         return expr
-    
-    # Handle numbers and identifiers
-    elif token_type == NUMBER:
+
+    if token_type == NUMBER:
         return {'type': 'Number', 'value': value}
-    elif token_type == IDENTIFIER:
+
+    if token_type == IDENTIFIER:
         return {'type': 'Identifier', 'name': value}
-    else:
-        raise SyntaxError(f"Unexpected token '{value}' of type '{token_type}'" )
 
-
-
-
+    raise SyntaxError(f"Unexpected token '{value}' of type '{token_type}'")
